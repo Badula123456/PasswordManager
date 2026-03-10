@@ -1,27 +1,29 @@
 package com.example.passwordmanager.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.example.passwordmanager.manager.PinManager
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.example.passwordmanager.manager.PinManager
+import com.example.passwordmanager.ui.element.PinButton
 
 @Composable
 fun PinScreen(
@@ -29,47 +31,103 @@ fun PinScreen(
     onSuccess: () -> Unit
 ) {
     var inputPin by remember { mutableStateOf("") }
-    val isSetupMode = !pinManager.isPinSet() // Если ПИН не создан, включаем режим настройки
+    var isError by remember { mutableStateOf(false) }
+    val isSetupMode = !pinManager.isPinSet()
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.SpaceEvenly // Распределяем элементы по вертикали
     ) {
+        // 1. Заголовок
         Text(
             text = if (isSetupMode) "Придумайте ПИН-код" else "Введите ПИН-код",
             style = MaterialTheme.typography.headlineMedium
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // 2. Индикаторы ввода (точки)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(vertical = 32.dp)
+        ) {
+            repeat(4) { index ->
+                val isFilled = index < inputPin.length
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isError) MaterialTheme.colorScheme.error
+                            else if (isFilled) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant
+                        )
+                )
+            }
+        }
 
-        // Поле ввода (в реальном приложении лучше сделать кнопками 0-9)
-        OutlinedTextField(
-            value = inputPin,
-            onValueChange = { if (it.length <= 4) inputPin = it },
-            label = { Text("ПИН (4 цифры)") },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
+        if (isError) {
+            Text("Неверный ПИН-код", color = MaterialTheme.colorScheme.error)
+        }
 
-        Button(
-            onClick = {
-                if (isSetupMode) {
-                    if (inputPin.length == 4) {
-                        pinManager.savePin(inputPin)
-                        onSuccess()
-                    }
-                } else {
-                    if (pinManager.checkPin(inputPin)) {
-                        onSuccess()
-                    } else {
-                        // Тут можно добавить показ ошибки "Неверный ПИН"
+        // 3. Цифровая клавиатура
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            val buttons = listOf(
+                listOf("1", "2", "3"),
+                listOf("4", "5", "6"),
+                listOf("7", "8", "9"),
+                listOf("OK", "0", "C") // Заменили "" на "OK"
+            )
+
+            buttons.forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    row.forEach { digit ->
+                        PinButton(digit) {
+                            when (digit) {
+                                "C" -> {
+                                    if (inputPin.isNotEmpty()) inputPin = inputPin.dropLast(1)
+                                    isError = false
+                                }
+                                "OK" -> {
+                                    // Проверяем ПИН только при нажатии OK
+                                    if (inputPin.length >= 4) { // или строго == 4
+                                        handlePinInput(inputPin, isSetupMode, pinManager, onSuccess) {
+                                            isError = true
+                                            inputPin = ""
+                                        }
+                                    }
+                                }
+                                else -> {
+                                    if (inputPin.length < 4) {
+                                        inputPin += digit
+                                        isError = false
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-            },
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
-            Text("Подтвердить")
+            }
         }
+    }
+}
+
+// Вспомогательная функция для логики
+private fun handlePinInput(
+    pin: String,
+    isSetup: Boolean,
+    manager: PinManager,
+    onSuccess: () -> Unit,
+    onError: () -> Unit
+) {
+    if (isSetup) {
+        manager.savePin(pin)
+        onSuccess()
+    } else {
+        if (manager.checkPin(pin)) onSuccess() else onError()
     }
 }
