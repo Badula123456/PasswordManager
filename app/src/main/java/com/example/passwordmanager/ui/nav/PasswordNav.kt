@@ -11,6 +11,7 @@ import com.example.passwordmanager.manager.PinManager
 import com.example.passwordmanager.ui.screens.AddPasswordScreen
 import com.example.passwordmanager.ui.screens.MainScreen
 import com.example.passwordmanager.ui.screens.PinScreen
+import com.example.passwordmanager.ui.screens.SettingsScreen
 import com.example.passwordmanager.viewmodel.PasswordViewModel
 
 @Composable
@@ -36,7 +37,10 @@ fun PasswordNav(viewModel: PasswordViewModel) {
         composable("list") {
             MainScreen(
                 passwords = passwords,
-                onAddClick = { navController.navigate("add") }
+                onAddClick = {
+                    navController.navigate("add")},
+                onDelete = { viewModel.deletePassword(it)},
+                onSettingsClick = { navController.navigate("settings")}
             )
         }
         composable("add") {
@@ -44,6 +48,9 @@ fun PasswordNav(viewModel: PasswordViewModel) {
                 viewModel.addPassword(service = service, login = login, password = password)
                 navController.popBackStack()
             }
+        }
+        composable("settings") {
+            SettingsScreen(pinManager)
         }
     }
 }

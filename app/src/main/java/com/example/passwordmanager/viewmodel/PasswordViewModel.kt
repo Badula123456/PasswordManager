@@ -20,4 +20,11 @@ class PasswordViewModel(private val dao: PasswordsDao) : ViewModel() {
             dao.insertPassword(PasswordEntity(service = service, login = login, password = password))
         }
     }
+
+    fun deletePassword(password: PasswordEntity){
+        viewModelScope.launch {
+            dao.deletePassword(password)
+        }
+    }
+
 }

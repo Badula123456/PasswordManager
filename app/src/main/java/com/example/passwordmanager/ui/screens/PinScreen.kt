@@ -1,5 +1,7 @@
 package com.example.passwordmanager.ui.screens
 
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,10 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import com.example.passwordmanager.ui.element.PinButton
 
 @Composable
@@ -31,6 +37,53 @@ fun PinScreen(
     var inputPin by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
     val isSetupMode = !pinManager.isPinSet()
+
+    val context = LocalContext.current
+    val activity = context as FragmentActivity
+
+    val executor = ContextCompat.getMainExecutor(context)
+
+    val biometricEnabled = pinManager.isBiometricEnabled()
+
+
+    val biometricPrompt = BiometricPrompt(
+        activity,
+        executor,
+        object : BiometricPrompt.AuthenticationCallback() {
+
+            override fun onAuthenticationSucceeded(
+                result: BiometricPrompt.AuthenticationResult
+            ) {
+                super.onAuthenticationSucceeded(result)
+
+                onSuccess()
+            }
+
+            override fun onAuthenticationFailed() {
+                super.onAuthenticationFailed()
+            }
+        }
+    )
+
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        .setTitle("Вход в менеджер паролей")
+        .setSubtitle("Подтвердите отпечаток пальца")
+        .setNegativeButtonText("Использовать PIN")
+        .build()
+
+    val biometricManager = BiometricManager.from(context)
+
+    val canUseBiometric =
+        biometricManager.canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+
+
+    LaunchedEffect(Unit) {
+        if (!isSetupMode && canUseBiometric && biometricEnabled) {
+            biometricPrompt.authenticate(promptInfo)
+        }
+    }
 
     Column(
         modifier = Modifier
